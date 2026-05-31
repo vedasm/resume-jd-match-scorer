@@ -101,10 +101,14 @@ async def home(request: Request):
     Serve the main web interface.
     When you open http://localhost:8000 in a browser, you see this page.
     """
-    return templates.TemplateResponse(request=request, name="index.html")
+    return templates.TemplateResponse(
+        request=request,
+        name="index.html",
+        context={"api_analyze_url": request.url_for("analyze")},
+    )
 
 
-@app.post("/analyze")
+@app.post("/analyze", name="analyze")
 async def analyze_pdfs(
     resume: UploadFile = File(..., description="Resume PDF"),
     job_description: UploadFile = File(..., description="Job description PDF"),

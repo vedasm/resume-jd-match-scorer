@@ -776,11 +776,8 @@
     const formData = new FormData(e.target);
 
     try {
-      // Build API URL relative to the current page path (HF Spaces can be nested under /spaces/...)
-      const baseUrl = window.location.href.endsWith('/')
-        ? window.location.href
-        : `${window.location.href}/`;
-      const apiUrl = new URL('analyze', baseUrl).toString();
+      // Use the server-generated URL so proxy/root_path stays correct in HF Spaces
+      const apiUrl = "{{ api_analyze_url }}";
 
       const response = await fetch(apiUrl, {
         method: 'POST',
