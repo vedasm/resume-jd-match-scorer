@@ -776,10 +776,18 @@
     const formData = new FormData(e.target);
 
     try {
-      const response = await fetch('/analyze', {
+      // In Hugging Face Spaces, absolute paths like '/analyze' might route to the main HF domain
+      // We must use relative paths ('./analyze') to stay within the Space's iframe context
+      const response = await fetch('./analyze', {
         method: 'POST',
         body:   formData
       });
+
+      // Check if the response is actually JSON. If HF returned an HTML error page, this will throw the "Unexpected token '<'" error
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new Error("Received non-JSON response from server (Likely a routing issue).");
+      }
 
       const data = await response.json();
 
