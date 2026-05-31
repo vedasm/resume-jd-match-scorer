@@ -37,16 +37,16 @@ COPY . .
 
 # ── Expose port ───────────────────────────────────────────────────────────
 # Tell Docker which port the app uses (8000 is FastAPI's default)
-EXPOSE 8000
+EXPOSE 7860
 
 # ── Health check ──────────────────────────────────────────────────────────
 # Docker checks this every 30s. If it fails 3 times, container is "unhealthy".
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-  CMD curl -f http://localhost:8000/health || exit 1
+  CMD curl -f http://localhost:7860/health || exit 1
 
 # ── Start command ─────────────────────────────────────────────────────────
 # uvicorn: the ASGI server that runs FastAPI
 # --host 0.0.0.0: listen on all interfaces (needed inside Docker)
-# --port 8000: use port 8000
+# --port 7860: use port 7860
 # --workers 2: handle 2 concurrent requests
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "7860", "--workers", "2"]
