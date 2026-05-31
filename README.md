@@ -1,3 +1,12 @@
+---
+title: Resume JD Match Scorer
+emoji: 📄
+colorFrom: blue
+colorTo: green
+sdk: docker
+pinned: false
+---
+
 # Resume–JD Match Scorer
 
 An NLP-powered tool that compares a resume against a job description,
