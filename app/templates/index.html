@@ -777,9 +777,12 @@
 
     try {
       // Use the server-generated URL so proxy/root_path stays correct in HF Spaces
-      const apiUrl = "{{ api_analyze_url }}";
+      const apiUrl = new URL("{{ api_analyze_url }}", window.location.origin);
+      // HF Spaces adds a signed query param (e.g., __sign=...) required for requests
+      const currentParams = new URLSearchParams(window.location.search);
+      currentParams.forEach((value, key) => apiUrl.searchParams.set(key, value));
 
-      const response = await fetch(apiUrl, {
+      const response = await fetch(apiUrl.toString(), {
         method: 'POST',
         body:   formData
       });
