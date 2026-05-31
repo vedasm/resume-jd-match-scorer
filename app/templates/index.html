@@ -776,9 +776,13 @@
     const formData = new FormData(e.target);
 
     try {
-      // Use absolute path since relative path was throwing 404 on HF
-      // huggingface uses root / for proxy to 7860
-      const response = await fetch('/analyze', {
+      // Build API URL relative to the current page path (HF Spaces can be nested under /spaces/...)
+      const baseUrl = window.location.href.endsWith('/')
+        ? window.location.href
+        : `${window.location.href}/`;
+      const apiUrl = new URL('analyze', baseUrl).toString();
+
+      const response = await fetch(apiUrl, {
         method: 'POST',
         body:   formData
       });
