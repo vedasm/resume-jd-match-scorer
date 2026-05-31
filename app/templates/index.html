@@ -776,9 +776,9 @@
     const formData = new FormData(e.target);
 
     try {
-      // In Hugging Face Spaces, absolute paths like '/analyze' might route to the main HF domain
-      // We must use relative paths ('./analyze') to stay within the Space's iframe context
-      const response = await fetch('./analyze', {
+      // Use absolute path since relative path was throwing 404 on HF
+      // huggingface uses root / for proxy to 7860
+      const response = await fetch('/analyze', {
         method: 'POST',
         body:   formData
       });

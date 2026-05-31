@@ -23,6 +23,8 @@ from pathlib import Path
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
+from fastapi.middleware.cors import CORSMiddleware
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 from dotenv import load_dotenv
 
 # Import our modules
@@ -49,6 +51,18 @@ app = FastAPI(
     version="1.0.0",
     docs_url="/docs",       # Swagger UI available at /docs
     redoc_url="/redoc",     # Alternative docs at /redoc
+)
+
+# Crucial for Hugging Face Spaces Load Balancers
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
+
+# Enable CORS (Allows the iframe to talk to the API)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # ── Template engine ────────────────────────────────────────────────────────
