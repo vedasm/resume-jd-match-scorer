@@ -33,13 +33,10 @@ python -m venv venv
 # 3. Install dependencies
 pip install -r requirements.txt
 
-# 4. Copy environment file
-cp .env.example .env
-
-# 5. Start the server
+# 4. Start the server
 uvicorn app.main:app --reload --port 8000
 
-# 6. Open in browser
+# 5. Open in browser
 # → http://localhost:8000
 ```
 
