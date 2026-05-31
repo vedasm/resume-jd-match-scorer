@@ -1,0 +1,58 @@
+# docker-compose.yml
+# ------------------
+# Orchestrates the application container.
+# Run with: docker-compose up --build
+
+version: '3.9'
+
+services:
+
+  # ── Main application ────────────────────────────────────────────────────
+  resume-matcher:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    # Map container port 8000 → host port 8000
+    # Visit http://localhost:8000 in your browser
+    ports:
+      - "8000:8000"
+
+    # Environment variables loaded from .env file
+    env_file:
+      - .env
+
+    # Override specific variables
+    environment:
+      - EMBEDDING_MODEL=all-MiniLM-L6-v2
+      - LOG_LEVEL=INFO
+
+    # Named volume for model cache
+    # This persists the downloaded model between container restarts
+    # Without this, Docker re-downloads the model every time
+    volumes:
+      - model_cache:/root/.cache/huggingface
+
+    # Docker health check (uses the /health endpoint)
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s  # Give extra time on startup (model loading)
+      retries: 3
+
+    # Restart policy: always restart unless manually stopped
+    restart: unless-stopped
+
+    # Resource limits (optional — prevents runaway memory usage)
+    deploy:
+      resources:
+        limits:
+          memory: 2G    # 2GB RAM max (model + Flask = ~500MB)
+          cpus: '2'     # 2 CPU cores max
+
+# ── Named volumes ──────────────────────────────────────────────────────────
+# Persists data between container restarts
+volumes:
+  model_cache:
+    driver: local

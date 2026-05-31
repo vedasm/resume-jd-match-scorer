@@ -1,0 +1,24 @@
+# Web framework and server
+fastapi>=0.104.1
+uvicorn[standard]>=0.24.0
+
+# File upload support for FastAPI
+python-multipart>=0.0.6
+
+# PDF text extraction
+pdfplumber>=0.10.3
+
+# NLP: sentence embeddings
+sentence-transformers>=2.2.2
+
+# Math: cosine similarity computation
+scikit-learn>=1.3.2
+
+# Data validation / type checking
+pydantic>=2.5.0
+
+# HTML template rendering
+jinja2>=3.1.2
+
+# Environment variable management
+python-dotenv>=1.0.0

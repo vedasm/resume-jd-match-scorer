@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Resume Match Scorer</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    /* ── CSS Variables (design tokens) ─────────────────────── */
+    :root {
+      --bg:          #0b0f1a;
+      --panel:       #111827;
+      --panel-light: #1a2235;
+      --border:      #2a3449;
+      --accent:      #3b82f6;
+      --accent-glow: rgba(59,130,246,0.20);
+      --green:        #10b981;
+      --amber:        #f59e0b;
+      --red:          #ef4444;
+      --text:         #e2e8f0;
+      --muted:        #64748b;
+      --mono:         'IBM Plex Mono', 'Fira Code', 'Courier New', monospace;
+      --sans:         'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif;
+    }
+
+    /* ── Reset & Base ───────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 15px;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    /* ── Fonts (loaded from Google Fonts CDN) ───────────────── */
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+
+    /* ── Header ─────────────────────────────────────────────── */
+    header {
+      border-bottom: 1px solid var(--border);
+      padding: 20px 40px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      background: var(--panel);
+    }
+    .logo-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 14px var(--accent);
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%,100% { opacity:1; transform: scale(1);   }
+      50%      { opacity:.5; transform: scale(1.3); }
+    }
+    header h1 {
+      font-family: var(--mono);
+      font-size: 1.1rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      color: var(--text);
+    }
+    header span {
+      margin-left: auto;
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+
+    /* ── Main layout ────────────────────────────────────────── */
+    main { max-width: 900px; margin: 0 auto; padding: 48px 24px; }
+
+    /* ── Section headings ───────────────────────────────────── */
+    .section-label {
+      font-family: var(--mono);
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 12px;
+    }
+
+    /* ── Upload card ────────────────────────────────────────── */
+    .upload-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 36px;
+    }
+    .upload-card h2 {
+      font-size: 1.6rem;
+      font-weight: 300;
+      margin-bottom: 8px;
+    }
+    .upload-card p {
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin-bottom: 32px;
+    }
+
+    /* ── Upload grid ─────────────────────────────────────────── */
+    .upload-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 28px;
+    }
+    @media (max-width: 640px) { .upload-grid { grid-template-columns: 1fr; } }
+
+    .drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: 10px;
+      padding: 28px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      position: relative;
+    }
+    .drop-zone:hover, .drop-zone.active {
+      border-color: var(--accent);
+      background: var(--accent-glow);
+    }
+    .drop-zone input[type="file"] {
+      position: absolute; inset: 0;
+      opacity: 0; cursor: pointer;
+      width: 100%; height: 100%;
+    }
+    .drop-icon {
+      font-size: 2rem;
+      margin-bottom: 10px;
+      display: block;
+    }
+    .drop-zone label {
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--text);
+      display: block;
+      cursor: pointer;
+    }
+    .drop-zone .drop-sub {
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+    .drop-zone .file-name {
+      margin-top: 10px;
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      color: var(--green);
+      background: rgba(16,185,129,0.1);
+      padding: 4px 10px;
+      border-radius: 4px;
+      display: none;
+    }
+    .drop-zone.has-file .file-name { display: inline-block; }
+    .drop-zone.has-file { border-color: var(--green); }
+
+    /* ── Submit button ───────────────────────────────────────── */
+    .btn-analyze {
+      width: 100%;
+      padding: 14px;
+      background: var(--accent);
+      color: #fff;
+      font-family: var(--mono);
+      font-size: 0.9rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+    .btn-analyze:hover   { opacity: 0.88; }
+    .btn-analyze:active  { transform: scale(0.98); }
+    .btn-analyze:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* ── Loading state ───────────────────────────────────────── */
+    #loading {
+      display: none;
+      text-align: center;
+      padding: 48px 0;
+    }
+    .spinner {
+      width: 48px; height: 48px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 20px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #loading p { color: var(--muted); font-family: var(--mono); font-size: 0.8rem; }
+
+    /* ── Error box ───────────────────────────────────────────── */
+    #error-box {
+      display: none;
+      background: rgba(239,68,68,0.1);
+      border: 1px solid var(--red);
+      border-radius: 8px;
+      padding: 16px 20px;
+      color: var(--red);
+      font-size: 0.9rem;
+      margin-top: 20px;
+    }
+
+    /* ── Results section ─────────────────────────────────────── */
+    #results {
+      display: none;
+      margin-top: 40px;
+    }
+
+    /* Score panel */
+    .score-panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 36px;
+      display: flex;
+      align-items: center;
+      gap: 40px;
+      margin-bottom: 24px;
+    }
+    @media (max-width: 640px) {
+      .score-panel { flex-direction: column; gap: 24px; }
+    }
+
+    /* SVG score ring */
+    .score-ring-wrap { position: relative; flex-shrink: 0; }
+    .score-ring-wrap svg { transform: rotate(-90deg); }
+    .ring-bg   { fill: none; stroke: var(--border); stroke-width: 8; }
+    .ring-fill {
+      fill: none;
+      stroke: var(--accent);
+      stroke-width: 8;
+      stroke-linecap: round;
+      stroke-dasharray: 283;   /* circumference of r=45 circle */
+      stroke-dashoffset: 283;  /* fully hidden initially */
+      transition: stroke-dashoffset 1.2s ease-out;
+    }
+    .score-text {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+    }
+    .score-text .score-num {
+      font-family: var(--mono);
+      font-size: 1.6rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .score-text .score-pct {
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+
+    /* Score verdict */
+    .score-meta h3 {
+      font-size: 1.3rem;
+      font-weight: 400;
+      margin-bottom: 6px;
+    }
+    .score-meta p {
+      font-size: 0.88rem;
+      color: var(--muted);
+      max-width: 380px;
+    }
+    .verdict {
+      display: inline-block;
+      margin-top: 12px;
+      padding: 5px 14px;
+      border-radius: 999px;
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    .verdict.high   { background: rgba(16,185,129,0.15); color: var(--green); }
+    .verdict.medium { background: rgba(245,158,11,0.15);  color: var(--amber); }
+    .verdict.low    { background: rgba(239,68,68,0.15);   color: var(--red);   }
+
+    /* Stat row */
+    .stat-row {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .stat-box {
+      flex: 1;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 18px 20px;
+    }
+    .stat-box .stat-num {
+      font-family: var(--mono);
+      font-size: 1.6rem;
+      font-weight: 600;
+      color: var(--accent);
+    }
+    .stat-box .stat-label {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    /* Charts row */
+    .charts-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+    @media (max-width: 640px) { .charts-row { grid-template-columns: 1fr; } }
+    
+    .chart-container {
+      position: relative;
+      width: 100%;
+      height: 220px;
+      margin-top: 10px;
+    }
+
+    /* Matching skills */
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+    .card h3 {
+      font-family: var(--mono);
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--accent);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+    .skill-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .chip {
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+    .chip.match  { background: rgba(16,185,129,0.12); color: var(--green); border: 1px solid rgba(16,185,129,0.3); }
+    .chip.resume { background: rgba(59,130,246,0.12); color: var(--accent); border: 1px solid rgba(59,130,246,0.3); }
+
+    /* Gap analysis table */
+    .gap-table { width: 100%; border-collapse: collapse; }
+    .gap-table thead tr {
+      border-bottom: 1px solid var(--border);
+    }
+    .gap-table th {
+      text-align: left;
+      font-family: var(--mono);
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      padding: 10px 16px;
+    }
+    .gap-table td {
+      padding: 12px 16px;
+      font-size: 0.85rem;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+    .gap-table tr:last-child td { border-bottom: none; }
+    .gap-table tr:hover td { background: var(--panel-light); }
+
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 4px;
+      font-family: var(--mono);
+      font-size: 0.7rem;
+      font-weight: 600;
+    }
+    .badge.High   { background: rgba(239,68,68,0.15);  color: var(--red);   }
+    .badge.Medium { background: rgba(245,158,11,0.15);  color: var(--amber); }
+    .badge.Low    { background: rgba(59,130,246,0.15);  color: var(--accent); }
+
+    .action-text { color: var(--muted); font-size: 0.82rem; line-height: 1.5; }
+
+    /* Process time */
+    .perf-note {
+      text-align: right;
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      color: var(--muted);
+      margin-top: 8px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ──────────────────────────────────────────────────────────── -->
+<header>
+  <div class="logo-dot"></div>
+  <h1>resume_match_scorer</h1>
+  <span>v1.0.0 · NLP + Sentence-Transformers</span>
+</header>
+
+<!-- ── Main ────────────────────────────────────────────────────────────── -->
+<main>
+
+  <!-- Upload card -->
+  <div class="upload-card" id="upload-card">
+    <p class="section-label">Analysis Tool</p>
+    <h2>Resume ↔ Job Description<br>Semantic Match Scorer</h2>
+    <p>Upload a resume PDF and a job description PDF to get a semantic compatibility score and skill gap analysis powered by Sentence-Transformers.</p>
+
+    <form id="upload-form">
+      <div class="upload-grid">
+
+        <!-- Resume upload -->
+        <div class="drop-zone" id="dz-resume">
+          <input type="file" id="resume-input" name="resume" accept=".pdf" required />
+          <span class="drop-icon">📄</span>
+          <label for="resume-input">Resume PDF</label>
+          <div class="drop-sub">Click or drag & drop</div>
+          <div class="file-name" id="resume-name"></div>
+        </div>
+
+        <!-- JD upload -->
+        <div class="drop-zone" id="dz-jd">
+          <input type="file" id="jd-input" name="job_description" accept=".pdf" required />
+          <span class="drop-icon">💼</span>
+          <label for="jd-input">Job Description PDF</label>
+          <div class="drop-sub">Click or drag & drop</div>
+          <div class="file-name" id="jd-name"></div>
+        </div>
+
+      </div>
+
+      <button type="submit" class="btn-analyze" id="btn-analyze">
+        ▶ RUN ANALYSIS
+      </button>
+    </form>
+
+    <div id="error-box"></div>
+  </div>
+
+  <!-- Loading -->
+  <div id="loading">
+    <div class="spinner"></div>
+    <p>Extracting text → Generating embeddings → Computing similarity...</p>
+  </div>
+
+  <!-- Results -->
+  <div id="results">
+
+    <!-- Score Ring -->
+    <div class="score-panel">
+      <div class="score-ring-wrap">
+        <svg width="100" height="100" viewBox="0 0 100 100">
+          <circle class="ring-bg"   cx="50" cy="50" r="45"/>
+          <circle class="ring-fill" cx="50" cy="50" r="45" id="score-ring"/>
+        </svg>
+        <div class="score-text">
+          <div class="score-num" id="score-num">0</div>
+          <div class="score-pct">%</div>
+        </div>
+      </div>
+      <div class="score-meta">
+        <h3>Semantic Compatibility Score</h3>
+        <p id="score-description">Cosine similarity between resume and job description sentence embeddings.</p>
+        <span class="verdict" id="verdict-badge"></span>
+      </div>
+    </div>
+
+    <!-- Stats row -->
+    <div class="stat-row">
+      <div class="stat-box">
+        <div class="stat-num" id="stat-matching">—</div>
+        <div class="stat-label">Matching Skills</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-num" id="stat-gaps">—</div>
+        <div class="stat-label">Skill Gaps Found</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-num" id="stat-jd-skills">—</div>
+        <div class="stat-label">JD Skills Total</div>
+      </div>
+    </div>
+
+    <!-- Charts row -->
+    <div class="charts-row">
+      <div class="card" style="margin-bottom:0;">
+        <h3>📊 Match Overview</h3>
+        <div class="chart-container">
+          <canvas id="matchChart"></canvas>
+        </div>
+      </div>
+      <div class="card" style="margin-bottom:0;">
+        <h3>📑 Gaps by Category</h3>
+        <div class="chart-container">
+          <canvas id="categoryChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Matching skills chips -->
+    <div class="card">
+      <h3>✅ Matching Skills</h3>
+      <div class="skill-chips" id="matching-chips"></div>
+    </div>
+
+    <!-- Gap analysis table -->
+    <div class="card">
+      <h3>🔍 Skill Gap Analysis</h3>
+      <table class="gap-table">
+        <thead>
+          <tr>
+            <th>Skill</th>
+            <th>Priority</th>
+            <th>Category</th>
+            <th>Action Item</th>
+            <th>Resources</th>
+          </tr>
+        </thead>
+        <tbody id="gap-tbody"></tbody>
+      </table>
+    </div>
+
+    <div class="perf-note" id="perf-note"></div>
+
+  </div><!-- /results -->
+
+</main>
+
+<script>
+  // ── Chart.js Global Config ──────────────────────────────────────────────
+  Chart.defaults.color = '#e2e8f0';
+  Chart.defaults.font.family = "'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif";
+  Chart.defaults.borderColor = 'rgba(255,255,255,0.05)';
+  
+  let matchChartInstance = null;
+  let categoryChartInstance = null;
+
+  // ── File input: show filename on selection ─────────────────────────────
+  function setupDropZone(inputId, dzId, nameId) {
+    const input = document.getElementById(inputId);
+    const dz    = document.getElementById(dzId);
+    const name  = document.getElementById(nameId);
+
+    input.addEventListener('change', () => {
+      if (input.files[0]) {
+        name.textContent = input.files[0].name;
+        dz.classList.add('has-file');
+      }
+    });
+
+    // Drag-and-drop visual feedback
+    dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('active'); });
+    dz.addEventListener('dragleave', () => dz.classList.remove('active'));
+    dz.addEventListener('drop', e => {
+      e.preventDefault();
+      dz.classList.remove('active');
+      if (e.dataTransfer.files[0]) {
+        input.files = e.dataTransfer.files;
+        name.textContent = e.dataTransfer.files[0].name;
+        dz.classList.add('has-file');
+      }
+    });
+  }
+
+  setupDropZone('resume-input', 'dz-resume', 'resume-name');
+  setupDropZone('jd-input',     'dz-jd',     'jd-name');
+
+  // ── Score ring animation ───────────────────────────────────────────────
+  function animateScore(score) {
+    const CIRCUMFERENCE = 2 * Math.PI * 45;   // ≈ 283
+    const ring = document.getElementById('score-ring');
+
+    // Animate the dashoffset from 283 (hidden) to the computed value
+    const offset = CIRCUMFERENCE * (1 - score / 100);
+    ring.style.strokeDasharray  = CIRCUMFERENCE;
+    ring.style.strokeDashoffset = CIRCUMFERENCE; // reset
+
+    requestAnimationFrame(() => {
+      setTimeout(() => { ring.style.strokeDashoffset = offset; }, 50);
+    });
+
+    // Color ring based on score
+    if (score >= 70) ring.style.stroke = '#10b981';       // green
+    else if (score >= 45) ring.style.stroke = '#f59e0b';  // amber
+    else ring.style.stroke = '#ef4444';                   // red
+
+    // Animate the number counter
+    let current = 0;
+    const target  = Math.round(score);
+    const step    = Math.max(1, Math.floor(target / 40));
+    const counter = document.getElementById('score-num');
+    const timer   = setInterval(() => {
+      current = Math.min(current + step, target);
+      counter.textContent = current;
+      if (current >= target) clearInterval(timer);
+    }, 25);
+  }
+
+  // ── Render results ────────────────────────────────────────────────────
+  function renderResults(data) {
+    // Score ring
+    animateScore(data.similarity_score);
+
+    // Verdict badge
+    const score  = data.similarity_score;
+    const badge  = document.getElementById('verdict-badge');
+    const desc   = document.getElementById('score-description');
+    if (score >= 70) {
+      badge.textContent = '● Strong Match';
+      badge.className   = 'verdict high';
+      desc.textContent  = 'Your resume aligns well with this job description. Focus on the high-priority gaps.';
+    } else if (score >= 45) {
+      badge.textContent = '● Moderate Match';
+      badge.className   = 'verdict medium';
+      desc.textContent  = 'Reasonable alignment. Bridging the skill gaps below will significantly improve your chances.';
+    } else {
+      badge.textContent = '● Low Match';
+      badge.className   = 'verdict low';
+      desc.textContent  = 'Consider upskilling in the listed areas or targeting roles that better suit your current profile.';
+    }
+
+    // Stats
+    document.getElementById('stat-matching').textContent  = data.matching_skills.length;
+    document.getElementById('stat-gaps').textContent      = data.skill_gaps.length;
+    document.getElementById('stat-jd-skills').textContent = data.jd_skills.length;
+
+    // Render Charts
+    renderCharts(data);
+
+    // Matching chips
+    const chips = document.getElementById('matching-chips');
+    chips.innerHTML = '';
+    if (data.matching_skills.length === 0) {
+      chips.innerHTML = '<span style="color:var(--muted);font-size:.85rem">No direct skill keyword matches found</span>';
+    } else {
+      data.matching_skills.forEach(s => {
+        const chip = document.createElement('span');
+        chip.className   = 'chip match';
+        chip.textContent = s;
+        chips.appendChild(chip);
+      });
+    }
+
+    // Gap table
+    const tbody = document.getElementById('gap-tbody');
+    tbody.innerHTML = '';
+    if (data.skill_gaps.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="5" style="color:var(--green);text-align:center;padding:20px">
+        🎉 No skill gaps detected! Your resume covers all identified JD skills.
+      </td></tr>`;
+    } else {
+      data.skill_gaps.forEach(gap => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><strong>${gap.skill}</strong></td>
+          <td><span class="badge ${gap.priority}">${gap.priority}</span></td>
+          <td style="color:var(--muted);font-size:.8rem">${gap.category}</td>
+          <td class="action-text">${gap.action_item}</td>
+          <td style="font-size:0.8rem;white-space:nowrap;">
+            <a href="${gap.free_resource}" target="_blank" style="color:var(--accent);text-decoration:none;">📺 Free</a> | 
+            <a href="${gap.paid_resource}" target="_blank" style="color:var(--amber);text-decoration:none;">🎓 Paid</a>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // Performance note
+    document.getElementById('perf-note').textContent =
+      `⚡ Analysis completed in ${data.processing_time.toFixed(2)}s`;
+
+    // Show results section
+    document.getElementById('results').style.display = 'block';
+    document.getElementById('results').scrollIntoView({ behavior: 'smooth' });
+  }
+
+  // ── Render Charts ───────────────────────────────────────────────────────
+  function renderCharts(data) {
+    const matchCtx = document.getElementById('matchChart').getContext('2d');
+    const catCtx = document.getElementById('categoryChart').getContext('2d');
+
+    if (matchChartInstance) matchChartInstance.destroy();
+    if (categoryChartInstance) categoryChartInstance.destroy();
+
+    // 1. Doughnut Chart (Matches vs Gaps)
+    matchChartInstance = new Chart(matchCtx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Matching Skills', 'Skill Gaps'],
+        datasets: [{
+          data: [data.matching_skills.length, data.skill_gaps.length],
+          backgroundColor: ['#10b981', '#ef4444'],
+          borderColor: '#111827',
+          borderWidth: 2,
+          hoverOffset: 4
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { position: 'bottom' } },
+        cutout: '70%'
+      }
+    });
+
+    // 2. Bar Chart (Gaps by Category)
+    const categoryCounts = {};
+    data.skill_gaps.forEach(gap => {
+      categoryCounts[gap.category] = (categoryCounts[gap.category] || 0) + 1;
+    });
+    
+    const sortedCategories = Object.keys(categoryCounts).sort((a,b) => categoryCounts[b] - categoryCounts[a]);
+    const counts = sortedCategories.map(cat => categoryCounts[cat]);
+
+    if (sortedCategories.length === 0) {
+      sortedCategories.push('No Gaps');
+      counts.push(0);
+    }
+
+    categoryChartInstance = new Chart(catCtx, {
+      type: 'bar',
+      data: {
+        labels: sortedCategories,
+        datasets: [{
+          label: 'Missing Skills',
+          data: counts,
+          backgroundColor: '#3b82f6',
+          borderRadius: 4
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: { beginAtZero: true, ticks: { stepSize: 1, precision: 0 } },
+          x: { grid: { display: false } }
+        }
+      }
+    });
+  }
+
+  // ── Form submit handler ───────────────────────────────────────────────
+  document.getElementById('upload-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const btn      = document.getElementById('btn-analyze');
+    const errorBox = document.getElementById('error-box');
+    const loading  = document.getElementById('loading');
+    const results  = document.getElementById('results');
+
+    // Reset UI state
+    errorBox.style.display = 'none';
+    results.style.display  = 'none';
+    btn.disabled           = true;
+    loading.style.display  = 'block';
+
+    const formData = new FormData(e.target);
+
+    try {
+      const response = await fetch('/analyze', {
+        method: 'POST',
+        body:   formData
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.detail || `Server error: ${response.status}`);
+      }
+
+      renderResults(data);
+
+    } catch (err) {
+      errorBox.textContent = `❌ Error: ${err.message}`;
+      errorBox.style.display = 'block';
+    } finally {
+      loading.style.display = 'none';
+      btn.disabled          = false;
+    }
+  });
+</script>
+</body>
+</html>
