@@ -786,7 +786,9 @@
       // Check if the response is actually JSON. If HF returned an HTML error page, this will throw the "Unexpected token '<'" error
       const contentType = response.headers.get("content-type");
       if (!contentType || !contentType.includes("application/json")) {
-        throw new Error("Received non-JSON response from server (Likely a routing issue).");
+        const textResponse = await response.text();
+        console.error("Non-JSON Response Server Output:", textResponse);
+        throw new Error(`Server returned HTML instead of JSON. Check the console or logs. (Status: ${response.status})`);
       }
 
       const data = await response.json();
